@@ -1,4 +1,4 @@
-# PHP-auth
+# PHP-Auth
 
 ## Featured
 * Login
