@@ -1,2 +1,9 @@
 # PHP-auth
-complete login system
+
+## Featured
+* Login
+* Logout
+* Register
+* Forgot
+* Change password
+* Email Verification
