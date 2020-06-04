@@ -1,46 +1,21 @@
 <?php
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
-/**
- *Complete Login system
- *-register
- *-verify
- *-login
- *-forgot
- *-change password
- *-delete account
- */
+
+namespace App\Model;
+
+use Core\Database\QueryBuilder;
+use Exception;
+
 class Accounts
 {
     private $acct_userName;
     private $acct_email;
     private $acct_password;
-    private $conn;
 
-    public function __construct($db_conn)
+    public function __construct()
     {
-        $this->conn = $db_conn;
-    }
-    /****************************
-              SETTERS
-    ****************************/
-    public function setUserName($data)
-    {
-        $this->acct_userName = static::cleanValues($data);
-    }
-    public function setEmail($data)
-    {
-        $this->acct_email = static::cleanValues($data);
-    }
-    public function setPassword($data)
-    {
-        $this->acct_password = static::cleanValues($data);
     }
 
-    /****************************
-              REGISTER
-    ****************************/
+    
     public function verifyAcct()
     {
         $stmt = $this->conn->prepare('SELECT * FROM users
@@ -52,7 +27,6 @@ class Accounts
             $_SESSION['formMsg']="Username already exist.";
             header('location:../index.php');
             exit();
-
         } else {
             $stmt_2 = $this->conn->prepare('SELECT * FROM users
                                         WHERE acct_email=?');
@@ -91,7 +65,6 @@ class Accounts
                 $_SESSION['formMsg']="Something went wrong, please try again.";
                 header('location:../index.php');
                 exit();
-
             } else {
                 // mail the token to verify
                 $subject = 'Brand-Name | Verify Account';
@@ -141,7 +114,6 @@ class Accounts
                 $_SESSION['formMsg']="Something went wrong, please try again or request another.";
                 header('location:../index.php');
                 exit();
-
             } else {
                 // update status
                 $stmt2 = $this->conn->prepare('UPDATE users SET acct_status = "Verified"
@@ -155,7 +127,6 @@ class Accounts
                     $_SESSION['formMsg']="Something went wrong, please try again or request another.";
                     header('location:../index.php');
                     exit();
-
                 } else {
                     // next page
                     echo "success";
@@ -185,7 +156,6 @@ class Accounts
                 $_SESSION['formMsg']="Username or Email did`nt match.";
                 header('location:../index.php');
                 exit();
-
             } else {
                 // verify if input password and database password match
                 // password_verify() works with password_hash()
@@ -193,7 +163,6 @@ class Accounts
                     $_SESSION['formMsg']="Password did`nt match.";
                     header('location:../index.php');
                     exit();
-
                 } else {
                     $stmt_2 = $this->conn->prepare('UPDATE users SET acct_login_time = ?
                                 WHERE acct_userName = ?');
@@ -203,18 +172,16 @@ class Accounts
                     $stmt_2->execute();
 
                     if (!$stmt_2) {
-                      $_SESSION['formMsg']="Something went wrong, please try again.";
-                      header('location:../index.php');
-                      exit();
-
-                    }else {
-                      //next page
-                      $_SESSION['userName']=$userName;
-                      $_SESSION['formMsg']="Welcome.";
-                      header('location:../home.php?success');
-                      exit();
+                        $_SESSION['formMsg']="Something went wrong, please try again.";
+                        header('location:../index.php');
+                        exit();
+                    } else {
+                        //next page
+                        $_SESSION['userName']=$userName;
+                        $_SESSION['formMsg']="Welcome.";
+                        header('location:../home.php?success');
+                        exit();
                     }
-
                 }
             }
         } catch (Exception $e) {
@@ -239,7 +206,6 @@ class Accounts
                 $_SESSION['formMsg']="Something went wrong, please logout and try again.";
                 header('location:../index.php');
                 exit();
-
             } else {
                 session_unset();
                 session_destroy();
@@ -266,7 +232,6 @@ class Accounts
                 $_SESSION['formMsg']="Email did`nt match.";
                 header('location:../index.php');
                 exit();
-
             } else {
                 // give user/password/reset or a password reset only
                 $subject = 'Brand-Name | Recover Account';
@@ -296,7 +261,6 @@ class Accounts
     ****************************/
     public function verifyPwd($acct_userName)
     {
-        try {
             $stmt=$this->conn->prepare('SELECT * FROM users
 																	WHERE acct_userName = ? LIMIT 1');
             $stmt->bindparam('1', $acct_userName);
@@ -306,124 +270,57 @@ class Accounts
                 $_SESSION['formMsg']="Something went wrong, please logout and try again.";
                 header('location:../index.php');
                 exit();
-
             } else {
                 $row=$stmt->fetch();
                 if ($stmt->rowCount() < 1) {
-                  // verify if input password and database password match
-                  // password_verify() works with password_hash()
-                  if (!password_verify($this->acct_password, $row['acct_password'])) {
-                      $_SESSION['formMsg']="Old Password did`nt match.";
-                      header('location:../index.php');
-                      exit();
-                  }
+                    // verify if input password and database password match
+                    // password_verify() works with password_hash()
+                    if (!password_verify($this->acct_password, $row['acct_password'])) {
+                        $_SESSION['formMsg']="Old Password did`nt match.";
+                        header('location:../index.php');
+                        exit();
+                    }
                 }
             }
-        } catch (Exception $e) {
-            echo  $e->getMessage();
-        }
     }
 
-    public function updatePassword($userName)
+    public function update($userName, $userPassword)
     {
-        try {
-            $stmt = $this->conn->prepare('UPDATE users SET acct_password = ?
-														WHERE acct_userName= ?');
-            $acct_pwd = password_hash($this->acct_password, PASSWORD_DEFAULT);
+        $db = new QueryBuilder(APP['database']);
+        $sql ='UPDATE users SET password = ? WHERE username = ?';
 
-            $stmt->bindparam('1', $acct_pwd);
-            $stmt->bindparam('2', $userName);
-            $stmt->execute();
-
-            if (!$stmt) {
-                $_SESSION['formMsg']="Something went wrong, please logout and try again.";
-                header('../view/settings.php');
-                exit();
-
-            } else {
-                $_SESSION['formMsg']="Password successfuly change.";
-                header('location:../view/settings.php');
-                exit();
-            }
-        } catch (Exception $e) {
-            echo  $e->getMessage();
+        if ($db->query($sql)) {
+            // success
         }
+
+        throw new Exception("Error Processing Request");
     }
 
-    /****************************
-            DELETE ACCOUNT
-    ****************************/
     public function delete($id)
     {
-        try {
-            $stmt=$this->conn->prepare('SELECT * FROM users
-                                WHERE acct_userName = ? LIMIT 1');
-            $stmt->bindparam('1', $id);
-            $stmt->execute();
-            $stmt->fetch();
-
-            if ($stmt->rowCount() < 1) {
-                $_SESSION['formMsg']="Something went wrong, please logout and try again.";
-                header('location:../index.php');
-                exit();
-
-            } else {
-                $stmt_2 = $this->conn->prepare('DELETE FROM users WHERE acct_userName = ? ');
-                $stmt_2->bindparam('1', $id);
-                $stmt_2->execute();
-
-                if (!$stmt_2) {
-                    $_SESSION['formMsg']="Something went wrong, please logout and try again.";
-                    header('location:../view/settings.php');
-                    exit();
-
-                } else {
-                    session_unset();
-                    session_destroy();
-                    header('location:../index.php');
-                    exit();
-                }
-            }
-        } catch (Exception $e) {
-            echo  $e->getMessage();
+        $db = new QueryBuilder(APP['database']);
+        if ($db->query('DELETE FROM users WHERE id = ?', $id)) {
+            session_unset();
+            session_destroy();
+            // logout
         }
+
+        throw new Exception("Error Processing Request");
     }
 
-    /****************************
-          CUSTOM FUNCTIONS
-    ****************************/
 
-    //////////UNIQUE iD//////////
     public function generateID()
     {
-        //sql to get max id
-        $stmt = 'SELECT acct_id FROM users
-						     WHERE LENGTH(acct_id) = (SELECT MAX(LENGTH(acct_id)) FROM users)
-						     ORDER BY acct_id DESC LIMIT 1';
-        //query sql
-        $result = $this->conn->query($stmt);
+        $db = new QueryBuilder(APP['database']);
+        $id = $db->querySelect('SELECT id FROM users ORDER BY id DESC');
 
-        //if result = 1
-        if ($result->rowCount() < 1) {
-            //if no id
+        if (!$id) {
             return 'Acct-10000';
-        } else {
-            //fetch results
-            while ($row = $result->fetch()) {
-                //explode after - -> ACC-
-                $hold = explode('-', $row['acct_id']);
-                //hold array index 1 value+1
-                $id = $hold[1]+1;
-                return 'Acct-'.$id;
-            }
         }
-    }
 
-    //////////SANITATION//////////
-    private function cleanValues($data)
-    {
-        //remove special characters (!@#$%^&*()_+{}|:"<>?[]\';/.,")
-        $value = preg_replace('/[^-a-zA-Z0-9@ ]/', "", strip_tags($data));
-        return $value;
+        $hold = explode('-', $id);
+        $id = $hold[1]+1;
+
+        return 'Acct-'.$id;
     }
 }
